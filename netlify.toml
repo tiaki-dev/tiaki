@@ -1,0 +1,12 @@
+[build]
+  base    = "docs"
+  command = "pnpm install && pnpm run gen-api-docs && pnpm build"
+  publish = "docs/build"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[[plugins]]
+  package = "@netlify/plugin-caching"
+  [plugins.inputs]
+    paths = ["docs/node_modules", "docs/.cache"]

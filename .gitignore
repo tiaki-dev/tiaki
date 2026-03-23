@@ -26,6 +26,13 @@ Thumbs.db
 *.log
 logs/
 
+# Docs
+docs/build/
+docs/.docusaurus/
+docs/docs/api/*.mdx
+docs/docs/api/*.json
+docs/docs/api/sidebar.ts
+
 # Test artifacts
 e2e/results/
 playwright-report
