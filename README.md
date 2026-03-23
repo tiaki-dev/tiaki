@@ -257,8 +257,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/itlabs-gmbh/tiaki/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/itlabs-gmbh/tiaki/discussions)
+- **Website**: [tiaki.dev](https://tiaki.dev)
+- **Documentation**: [docs.tiaki.dev](https://docs.tiaki.dev)
+- **Issues**: [GitHub Issues](https://github.com/tiaki-dev/tiaki/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/tiaki-dev/tiaki/discussions)
 
 ## Acknowledgments
 
