@@ -1,0 +1,54 @@
+# Tiaki Documentation
+
+> Tiaki is a self-hosted automated container update management system for Docker and Kubernetes. It monitors running containers, detects available image updates, and enables one-click deployments with built-in rollback.
+
+## Docs
+
+- [Introduction](https://docs.tiaki.dev/docs/intro): Overview, architecture, and key features
+- [Installation](https://docs.tiaki.dev/docs/getting-started/installation): Docker Compose quick start
+- [First Agent](https://docs.tiaki.dev/docs/getting-started/first-agent): Connecting your first Docker agent
+- [Dashboard Tour](https://docs.tiaki.dev/docs/getting-started/dashboard-tour): Overview of the web dashboard
+
+## Configuration
+
+- [Control Plane](https://docs.tiaki.dev/docs/configuration/control-plane): Environment variables for the server
+- [Docker Agent](https://docs.tiaki.dev/docs/configuration/agent-docker): Docker agent setup and configuration
+- [Kubernetes Agent](https://docs.tiaki.dev/docs/configuration/agent-kubernetes): Kubernetes agent setup and configuration
+- [Private Registries](https://docs.tiaki.dev/docs/configuration/private-registries): Authenticating with private container registries
+- [Email Notifications](https://docs.tiaki.dev/docs/configuration/notifications): SMTP configuration
+- [Security Scanning](https://docs.tiaki.dev/docs/configuration/security-scanning): Trivy CVE scanning integration
+- [Git Integration](https://docs.tiaki.dev/docs/configuration/git-integration): Auto-commit deployments to Git
+
+## Deployment
+
+- [Production Setup](https://docs.tiaki.dev/docs/deployment/production): Hardening for production use
+- [Kubernetes Deployment](https://docs.tiaki.dev/docs/deployment/kubernetes): Running the control plane on Kubernetes
+- [Upgrades](https://docs.tiaki.dev/docs/deployment/upgrades): Upgrading Tiaki components
+
+## API Reference
+
+- [API Overview](https://docs.tiaki.dev/docs/api): Agent REST API documentation
+- [Register Agent](https://docs.tiaki.dev/docs/api/register-agent): POST /api/v1/agents/register
+- [Agent Heartbeat](https://docs.tiaki.dev/docs/api/agent-heartbeat): POST /api/v1/agents/heartbeat
+- [Submit Report](https://docs.tiaki.dev/docs/api/submit-report): POST /api/v1/reports/submit
+- [Get Commands](https://docs.tiaki.dev/docs/api/get-commands): GET /api/v1/reports/commands
+- [Report Command Result](https://docs.tiaki.dev/docs/api/report-command-result): POST /api/v1/reports/commands/{commandId}/result
+
+## Developer Guide
+
+- [Architecture](https://docs.tiaki.dev/docs/developer/architecture): System design and component overview
+- [Local Development](https://docs.tiaki.dev/docs/developer/local-development): Setting up a dev environment
+- [Contributing](https://docs.tiaki.dev/docs/developer/contributing): Contribution guidelines
+- [Testing](https://docs.tiaki.dev/docs/developer/testing): Running and writing tests
+
+## Help
+
+- [Troubleshooting](https://docs.tiaki.dev/docs/help/troubleshooting): Common issues and fixes
+- [FAQ](https://docs.tiaki.dev/docs/help/faq): Frequently asked questions
+
+## Links
+
+- [Website](https://tiaki.dev)
+- [GitHub](https://github.com/tiaki-dev/tiaki)
+- [Changelog](https://github.com/tiaki-dev/tiaki/blob/main/CHANGELOG.md)
+- [OpenAPI Spec](https://github.com/tiaki-dev/tiaki/blob/main/proto/api.yaml)

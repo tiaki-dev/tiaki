@@ -32,6 +32,10 @@ const config: Config = {
           docItemComponent: "@theme/ApiItem",
         },
         blog: false,
+        sitemap: {
+          changefreq: "weekly",
+          priority: 0.5,
+        },
         theme: {
           customCss: "./src/css/custom.css",
         },
