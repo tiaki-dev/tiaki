@@ -1,0 +1,63 @@
+replicaCount: 1
+
+image:
+  repository: tiakidev/tiaki-agent-k8s
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+config:
+  controlUrl: "http://tiaki-server:3001"
+  apiKey: ""
+  agentName: ""
+  excludeNamespaces: []
+  tlsSkipVerify: false
+  caCertPath: ""
+
+registry:
+  username: ""
+  password: ""
+
+trivy:
+  enabled: false
+  minSeverity: "HIGH"
+
+existingSecret: ""

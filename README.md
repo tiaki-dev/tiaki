@@ -35,7 +35,34 @@ Tiaki uses a distributed architecture:
 
 ## Quick Start
 
-### Step 1 — Download the configuration files
+### Kubernetes (Helm)
+
+The fastest way to deploy Tiaki on Kubernetes is using Helm charts:
+
+```bash
+# Add the Tiaki Helm repository
+helm repo add tiaki https://charts.tiaki.dev
+helm repo update
+
+# Install the control plane
+helm install tiaki-control tiaki/tiaki-control \
+  --set config.adminToken=$(openssl rand -hex 32) \
+  --set postgresql.auth.password=$(openssl rand -hex 16) \
+  --namespace tiaki \
+  --create-namespace
+
+# Create an agent in the UI and get the API key, then install the agent
+helm install tiaki-agent tiaki/tiaki-agent \
+  --set config.controlUrl=http://tiaki-control:3001 \
+  --set config.apiKey=YOUR_API_KEY \
+  --namespace tiaki
+```
+
+See the [Kubernetes deployment guide](https://docs.tiaki.dev/deployment/kubernetes) for detailed configuration options.
+
+### Docker Compose
+
+#### Step 1 — Download the configuration files
 
 Download [`docker-compose.yml`](https://raw.githubusercontent.com/tiaki-dev/tiaki/main/docker-compose.yml) and [`.env.example`](https://raw.githubusercontent.com/tiaki-dev/tiaki/main/.env.example) into a new folder, or clone the repo:
 
@@ -44,7 +71,7 @@ git clone https://github.com/tiaki-dev/tiaki.git
 cd tiaki
 ```
 
-### Step 2 — Create your `.env` file
+#### Step 2 — Create your `.env` file
 
 ```bash
 cp .env.example .env
@@ -62,7 +89,7 @@ Paste the output as the value of `ADMIN_TOKEN` in your `.env` file:
 ADMIN_TOKEN=paste-your-generated-secret-here
 ```
 
-### Step 3 — Start Tiaki
+#### Step 3 — Start Tiaki
 
 ```bash
 docker compose up -d
@@ -75,7 +102,7 @@ This starts:
 
 Wait a few seconds, then open **http://localhost:3001** in your browser. You will be prompted to log in — use the `ADMIN_TOKEN` value you set in your `.env` file as the password.
 
-### Step 4 — Connect an agent to monitor your containers
+#### Step 4 — Connect an agent to monitor your containers
 
 The agent runs on any machine that has access to your Docker containers — either on the same host or remotely — and reports updates back to the dashboard. Just make sure the agent can reach the Tiaki server URL over the network.
 
@@ -236,11 +263,22 @@ docker-compose up -d
 
 ### Kubernetes Deployment
 
-Deploy the control plane to Kubernetes using the provided manifests (coming soon).
+Deploy the control plane to Kubernetes using Helm charts:
+
+```bash
+helm repo add tiaki https://charts.tiaki.dev
+helm install tiaki-control tiaki/tiaki-control \
+  --set config.adminToken=$(openssl rand -hex 32) \
+  --set postgresql.auth.password=$(openssl rand -hex 16) \
+  --namespace tiaki \
+  --create-namespace
+```
+
+See the [charts documentation](charts/README.md) for detailed configuration options.
 
 ## Roadmap
 
-- [ ] Helm charts for Kubernetes deployment
+- [x] Helm charts for Kubernetes deployment
 - [ ] Slack/Discord notification integrations
 - [ ] Scheduled deployment windows
 - [ ] Multi-tenancy support

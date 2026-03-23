@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tiaki-control.fullname" . }}
+  labels:
+    {{- include "tiaki-control.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "tiaki-control.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "tiaki-control.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "tiaki-control.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.config.port }}
+          protocol: TCP
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-control.secretName" . }}
+              key: database-url
+        - name: ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-control.secretName" . }}
+              key: admin-token
+        - name: PORT
+          value: {{ .Values.config.port | quote }}
+        - name: NODE_ENV
+          value: {{ .Values.config.nodeEnv | quote }}
+        {{- if .Values.config.scanInterval }}
+        - name: SCAN_INTERVAL
+          value: {{ .Values.config.scanInterval | quote }}
+        {{- end }}
+        {{- if .Values.config.smtp.host }}
+        - name: SMTP_HOST
+          value: {{ .Values.config.smtp.host | quote }}
+        - name: SMTP_PORT
+          value: {{ .Values.config.smtp.port | quote }}
+        - name: SMTP_SECURE
+          value: {{ .Values.config.smtp.secure | quote }}
+        - name: SMTP_FROM
+          value: {{ .Values.config.smtp.from | quote }}
+        {{- if .Values.config.smtp.user }}
+        - name: SMTP_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-control.secretName" . }}
+              key: smtp-user
+        {{- end }}
+        {{- if .Values.config.smtp.password }}
+        - name: SMTP_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-control.secretName" . }}
+              key: smtp-password
+        {{- end }}
+        {{- end }}
+        {{- if .Values.config.anthropic.apiKey }}
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-control.secretName" . }}
+              key: anthropic-api-key
+        {{- end }}
+        {{- if .Values.config.github.token }}
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-control.secretName" . }}
+              key: github-token
+        {{- end }}
+        {{- with .Values.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

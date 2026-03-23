@@ -1,0 +1,24 @@
+apiVersion: v2
+name: tiaki-control
+description: Tiaki control plane for automated container update management
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - tiaki
+  - kubernetes
+  - container-updates
+  - monitoring
+  - control-plane
+home: https://tiaki.dev
+sources:
+  - https://github.com/tiaki-dev/tiaki
+maintainers:
+  - name: Tiaki Team
+    url: https://github.com/tiaki-dev/tiaki
+icon: https://raw.githubusercontent.com/tiaki-dev/tiaki/main/logo.svg
+dependencies:
+  - name: postgresql
+    version: "18.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled

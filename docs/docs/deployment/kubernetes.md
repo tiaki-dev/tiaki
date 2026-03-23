@@ -10,14 +10,88 @@ This page covers deploying the Tiaki **control plane** itself to Kubernetes.
 For deploying the **Kubernetes agent** that monitors workloads in a cluster, see [Kubernetes Agent Configuration](../configuration/agent-kubernetes).
 :::
 
-## Prerequisites
+## Helm Charts (Recommended)
+
+The easiest way to deploy Tiaki on Kubernetes is using the official Helm charts.
+
+### Prerequisites
+
+- A Kubernetes cluster with `kubectl` access
+- Helm 3.x installed
+- An ingress controller (optional, for external access)
+
+### Quick Start
+
+```bash
+# Add the Tiaki Helm repository
+helm repo add tiaki https://charts.tiaki.dev
+helm repo update
+
+# Install the control plane with embedded PostgreSQL
+helm install tiaki-control tiaki/tiaki-control \
+  --set config.adminToken=$(openssl rand -hex 32) \
+  --set postgresql.auth.password=$(openssl rand -hex 16) \
+  --namespace tiaki \
+  --create-namespace
+
+# Wait for the control plane to be ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=tiaki-control -n tiaki --timeout=300s
+
+# Get the service URL
+kubectl get svc tiaki-control -n tiaki
+
+# Create an agent in the UI, then install the agent
+helm install tiaki-agent tiaki/tiaki-agent \
+  --set config.controlUrl=http://tiaki-control:3001 \
+  --set config.apiKey=YOUR_API_KEY_HERE \
+  --namespace tiaki
+```
+
+### Configuration Options
+
+See the [Helm Charts Reference](./helm-charts.md) for complete configuration documentation.
+
+### Upgrading
+
+```bash
+# Update Helm repository
+helm repo update
+
+# Upgrade control plane
+helm upgrade tiaki-control tiaki/tiaki-control \
+  --namespace tiaki
+
+# Upgrade agent
+helm upgrade tiaki-agent tiaki/tiaki-agent \
+  --namespace tiaki
+```
+
+### Uninstalling
+
+```bash
+# Uninstall agent
+helm uninstall tiaki-agent -n tiaki
+
+# Uninstall control plane (keeps PVCs)
+helm uninstall tiaki-control -n tiaki
+
+# Delete PVCs and namespace (WARNING: deletes all data)
+kubectl delete pvc -l app.kubernetes.io/instance=tiaki-control -n tiaki
+kubectl delete namespace tiaki
+```
+
+## Manual Deployment (Alternative)
+
+If you prefer not to use Helm, you can deploy using raw Kubernetes manifests.
+
+### Prerequisites
 
 - A Kubernetes cluster with `kubectl` access
 - A PostgreSQL instance reachable from within the cluster
 - An ingress controller (nginx-ingress, Traefik, etc.)
 - cert-manager for TLS (recommended)
 
-## Namespace and secrets
+### Namespace and secrets
 
 ```bash
 kubectl create namespace tiaki
@@ -127,10 +201,59 @@ kubectl rollout status deployment/tiaki-server -n tiaki
 
 The control plane is stateless (state lives in PostgreSQL) and can be scaled horizontally:
 
+**With Helm:**
+
+```bash
+helm upgrade tiaki-control tiaki/tiaki-control \
+  --set replicaCount=2 \
+  --namespace tiaki
+```
+
+**With kubectl:**
+
 ```bash
 kubectl scale deployment tiaki-server --replicas=2 -n tiaki
 ```
 
-:::info Helm charts
-Helm charts are on the roadmap. Until then, use the manifests above and adapt them to your cluster's conventions.
-:::
+## Troubleshooting
+
+### Control Plane Not Starting
+
+Check pod logs:
+
+```bash
+kubectl logs -l app.kubernetes.io/name=tiaki-control -n tiaki
+```
+
+Common issues:
+
+- Database connection failed: Verify PostgreSQL is running and credentials are correct
+- Port already in use: Check for conflicting services on port 3001
+
+### Agent Not Connecting
+
+Check agent logs:
+
+```bash
+kubectl logs -l app.kubernetes.io/name=tiaki-agent -n tiaki
+```
+
+Common issues:
+
+- Invalid API key: Create a new agent in the UI and update the Helm values
+- Network connectivity: Ensure the agent can reach the control plane service
+- RBAC permissions: Verify the ClusterRole and ClusterRoleBinding are created
+
+### Database Migrations
+
+Database migrations run automatically on startup. To run them manually:
+
+```bash
+kubectl exec -it deployment/tiaki-control -n tiaki -- node server/dist/migrate.js
+```
+
+## Additional Resources
+
+- [Control Plane Configuration](../configuration/control-plane.md)
+- [Kubernetes Agent Configuration](../configuration/agent-kubernetes.md)
+- [Helm Charts Documentation](https://github.com/tiaki-dev/tiaki/tree/main/charts)

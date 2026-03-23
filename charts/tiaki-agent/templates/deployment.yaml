@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tiaki-agent.fullname" . }}
+  labels:
+    {{- include "tiaki-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "tiaki-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "tiaki-agent.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "tiaki-agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: CONTROL_URL
+          value: {{ .Values.config.controlUrl | quote }}
+        - name: AGENT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-agent.secretName" . }}
+              key: api-key
+        {{- if .Values.config.agentName }}
+        - name: AGENT_NAME
+          value: {{ .Values.config.agentName | quote }}
+        {{- end }}
+        - name: AGENT_TYPE
+          value: "k8s"
+        {{- if .Values.config.excludeNamespaces }}
+        - name: EXCLUDE_NAMESPACES
+          value: {{ join "," .Values.config.excludeNamespaces | quote }}
+        {{- end }}
+        {{- if .Values.config.tlsSkipVerify }}
+        - name: TLS_SKIP_VERIFY
+          value: "true"
+        {{- end }}
+        {{- if .Values.config.caCertPath }}
+        - name: CA_CERT_PATH
+          value: {{ .Values.config.caCertPath | quote }}
+        {{- end }}
+        {{- if .Values.registry.username }}
+        - name: REGISTRY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-agent.secretName" . }}
+              key: registry-username
+        {{- end }}
+        {{- if .Values.registry.password }}
+        - name: REGISTRY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "tiaki-agent.secretName" . }}
+              key: registry-password
+        {{- end }}
+        {{- if .Values.trivy.enabled }}
+        - name: TRIVY_ENABLED
+          value: "true"
+        - name: TRIVY_MIN_SEVERITY
+          value: {{ .Values.trivy.minSeverity | quote }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        {{- with .Values.volumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
