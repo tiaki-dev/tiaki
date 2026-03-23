@@ -1,0 +1,55 @@
+apiVersion: v1
+entries:
+  tiaki-agent:
+  - apiVersion: v2
+    appVersion: 0.2.0
+    created: "2026-03-23T11:37:06.691293949Z"
+    description: Tiaki Kubernetes agent for automated container update management
+    digest: ef630e8fdb1a24e7e67d1344a1bfea766bae587fa66f10675fee2605feca229f
+    home: https://tiaki.dev
+    icon: https://raw.githubusercontent.com/tiaki-dev/tiaki/main/logo.svg
+    keywords:
+    - tiaki
+    - kubernetes
+    - container-updates
+    - monitoring
+    maintainers:
+    - name: Tiaki Team
+      url: https://github.com/tiaki-dev/tiaki
+    name: tiaki-agent
+    sources:
+    - https://github.com/tiaki-dev/tiaki
+    type: application
+    urls:
+    - https://github.com/tiaki-dev/tiaki/releases/download/tiaki-agent-0.2.0/tiaki-agent-0.2.0.tgz
+    version: 0.2.0
+  tiaki-control:
+  - apiVersion: v2
+    appVersion: 0.2.0
+    created: "2026-03-23T11:37:06.963404829Z"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 18.x.x
+    description: Tiaki control plane for automated container update management
+    digest: dcb7bea05270a76e62d396fda416cf4ff1b43bd526ac5b069978a31e95a71a26
+    home: https://tiaki.dev
+    icon: https://raw.githubusercontent.com/tiaki-dev/tiaki/main/logo.svg
+    keywords:
+    - tiaki
+    - kubernetes
+    - container-updates
+    - monitoring
+    - control-plane
+    maintainers:
+    - name: Tiaki Team
+      url: https://github.com/tiaki-dev/tiaki
+    name: tiaki-control
+    sources:
+    - https://github.com/tiaki-dev/tiaki
+    type: application
+    urls:
+    - https://github.com/tiaki-dev/tiaki/releases/download/tiaki-control-0.2.0/tiaki-control-0.2.0.tgz
+    version: 0.2.0
+generated: "2026-03-23T11:37:06.963419446Z"
