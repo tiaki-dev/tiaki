@@ -163,20 +163,47 @@ jobs:
           cd charts/tiaki-control
           helm dependency update
 
-      - name: Package Helm charts
+      - name: Package and release Helm charts
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          
+          # Package charts
           mkdir -p .cr-release-packages
           helm package charts/tiaki-agent -d .cr-release-packages
           helm package charts/tiaki-control -d .cr-release-packages
-
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
-        with:
-          charts_dir: charts
-          skip_existing: true
-          skip_packaging: true
+          
+          # Create GitHub releases and upload assets
+          for chart in .cr-release-packages/*.tgz; do
+            chart_name=$(basename "$chart" .tgz)
+            
+            # Check if release already exists
+            if ! gh release view "$chart_name" >/dev/null 2>&1; then
+              gh release create "$chart_name" "$chart" \
+                --title "$chart_name" \
+                --notes "Helm chart release for $chart_name"
+            fi
+          done
+          
+          # Update Helm repo index
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          
+          # Clone gh-pages branch
+          git clone --single-branch --branch gh-pages "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY.git" gh-pages
+          cd gh-pages
+          
+          # Generate index
+          helm repo index . --url "https://github.com/$GITHUB_REPOSITORY/releases/download" --merge index.yaml || helm repo index . --url "https://github.com/$GITHUB_REPOSITORY/releases/download"
+          
+          # Copy chart packages
+          cp ../.cr-release-packages/*.tgz .
+          
+          # Commit and push
+          git add .
+          git commit -m "Update Helm repository index for $VERSION" || true
+          git push origin gh-pages
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
   github-release:
     name: GitHub Release
