@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -90,4 +91,98 @@ func TestCheckForUpdateDigest_noCurrentDigest(t *testing.T) {
 	if hasUpdate {
 		t.Error("expected hasUpdate=false when currentDigest is empty")
 	}
+}
+
+func TestNewClientFromAuthFile_base64Auth(t *testing.T) {
+	import64 := "dXNlcm5hbWU6cGFzc3dvcmQ=" // base64("username:password")
+	content := `{"auths":{"https://index.docker.io/v1/":{"auth":"` + import64 + `"}}}`
+	f := writeTempFile(t, content)
+
+	c, err := NewClientFromAuthFile(f)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if c.username != "username" {
+		t.Errorf("username = %q, want %q", c.username, "username")
+	}
+	if c.password != "password" {
+		t.Errorf("password = %q, want %q", c.password, "password")
+	}
+}
+
+func TestNewClientFromAuthFile_plainCredentials(t *testing.T) {
+	content := `{"auths":{"ghcr.io":{"username":"ghuser","password":"ghtoken"}}}`
+	f := writeTempFile(t, content)
+
+	c, err := NewClientFromAuthFile(f)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if c.username != "ghuser" {
+		t.Errorf("username = %q, want %q", c.username, "ghuser")
+	}
+	if c.password != "ghtoken" {
+		t.Errorf("password = %q, want %q", c.password, "ghtoken")
+	}
+}
+
+func TestNewClientFromAuthFile_emptyAuths(t *testing.T) {
+	content := `{"auths":{}}`
+	f := writeTempFile(t, content)
+
+	c, err := NewClientFromAuthFile(f)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if c.username != "" || c.password != "" {
+		t.Errorf("expected empty credentials for empty auths, got user=%q pass=%q", c.username, c.password)
+	}
+}
+
+func TestNewClientFromAuthFile_missingFile(t *testing.T) {
+	_, err := NewClientFromAuthFile("/nonexistent/path/registry_auth.json")
+	if err == nil {
+		t.Error("expected error for missing file, got nil")
+	}
+}
+
+func TestNewClientFromAuthFile_malformedJSON(t *testing.T) {
+	f := writeTempFile(t, `not valid json`)
+	_, err := NewClientFromAuthFile(f)
+	if err == nil {
+		t.Error("expected error for malformed JSON, got nil")
+	}
+}
+
+func TestNewClientFromAuthFile_invalidBase64Auth(t *testing.T) {
+	content := `{"auths":{"registry.example.com":{"auth":"not-valid-base64!!!"}}}`
+	f := writeTempFile(t, content)
+	_, err := NewClientFromAuthFile(f)
+	if err == nil {
+		t.Error("expected error for invalid base64 auth field, got nil")
+	}
+}
+
+func TestNewClientFromAuthFile_base64AuthMissingColon(t *testing.T) {
+	import64 := "dXNlcm5hbWVvbmx5" // base64("usernameonly") — no colon
+	content := `{"auths":{"registry.example.com":{"auth":"` + import64 + `"}}}`
+	f := writeTempFile(t, content)
+	_, err := NewClientFromAuthFile(f)
+	if err == nil {
+		t.Error("expected error for base64 auth without colon separator, got nil")
+	}
+}
+
+// writeTempFile writes content to a temp file and returns its path.
+func writeTempFile(t *testing.T, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "auth*.json")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	if _, err := f.WriteString(content); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+	f.Close()
+	return f.Name()
 }

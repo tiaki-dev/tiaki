@@ -232,6 +232,19 @@ Key endpoints:
 
 - **API Keys**: Agents authenticate using bearer tokens. Keep API keys secure.
 - **Network**: Agents need outbound HTTPS access to container registries and the control plane.
+- **Docker Socket**: The Docker agent requires access to `/var/run/docker.sock`. For enhanced security, use a socket proxy to limit API access.
+- **Registry Credentials**: Use Docker secrets instead of environment variables for production deployments.
+
+### Enhanced Security Features
+
+Tiaki supports advanced security configurations for production environments:
+
+- **🔒 Docker Socket Proxy**: Limit Docker API access to only required endpoints using `tecnativa/docker-socket-proxy`
+- **🔐 Docker Secrets**: Secure registry credential storage (not visible in `docker inspect`)
+- **🌐 Network Isolation**: Services run in isolated Docker networks by default
+
+See **[DOCKER_SECURITY.md](DOCKER_SECURITY.md)** for setup instructions and **[SECURITY.md](SECURITY.md)** for the complete security policy.
+
 - **Permissions**: Docker agent requires access to Docker socket. K8s agent needs appropriate RBAC permissions.
 - **Secrets**: Never commit `.env` files or API keys to version control.
 - **Trivy**: When enabled, agents download vulnerability databases. Ensure adequate disk space.

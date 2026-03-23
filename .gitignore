@@ -14,6 +14,13 @@ agent/tiaki-agent-*
 # Docker
 .docker/
 
+# Secrets
+secrets/*.json
+secrets/*.key
+secrets/*.pem
+!secrets/*.example
+!secrets/README.md
+
 # OS
 .DS_Store
 Thumbs.db

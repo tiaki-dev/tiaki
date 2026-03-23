@@ -50,8 +50,11 @@ When we receive a security bug report, we will:
 
 - **API Keys**: Store agent API keys securely using environment variables or secrets management systems
 - **Docker Socket**: The Docker agent requires access to the Docker socket (`/var/run/docker.sock`). This grants significant privileges - ensure the agent runs in a trusted environment
+  - **Recommended**: Use a Docker socket proxy (e.g., `tecnativa/docker-socket-proxy`) to limit API access to only required endpoints
+  - See `docker-compose.yml` for socket-proxy configuration example
 - **Kubernetes RBAC**: The Kubernetes agent requires appropriate RBAC permissions. Follow the principle of least privilege
 - **Network Access**: Agents need outbound HTTPS access to container registries and the control plane
+- **Network Isolation**: Use Docker networks to isolate services (configured by default in `docker-compose.yml`)
 
 ### Control Plane Security
 
@@ -64,8 +67,12 @@ When we receive a security bug report, we will:
 ### Container Registry Credentials
 
 - **Private Registries**: If using private registries, store credentials securely
+  - **Recommended**: Use Docker secrets instead of environment variables (see `secrets/README.md`)
+  - Docker secrets are not visible in `docker inspect` or process listings
+  - Example configuration provided in `docker-compose.yml` (commented out by default)
 - **Credential Rotation**: Regularly rotate registry credentials
 - **Least Privilege**: Use read-only credentials where possible
+- **Never expose credentials**: Avoid mounting `~/.docker/config.json` directly
 
 ## Known Security Considerations
 
@@ -88,13 +95,16 @@ When we receive a security bug report, we will:
 
 ## Security Best Practices
 
-1. **Network Segmentation**: Run agents in isolated network segments
-2. **Audit Logging**: Enable and monitor audit logs for all deployments
-3. **Access Control**: Limit control plane access to authorized users only
-4. **Regular Updates**: Keep Tiaki and all dependencies up to date
-5. **Vulnerability Scanning**: Enable Trivy integration for container scanning
-6. **Backup**: Regularly backup the control plane database
-7. **Monitoring**: Monitor agent and control plane logs for suspicious activity
+1. **Network Segmentation**: Run agents in isolated network segments (Docker networks configured by default)
+2. **Docker Socket Proxy**: Use `tecnativa/docker-socket-proxy` to limit Docker API access (see `docker-compose.yml`)
+3. **Docker Secrets**: Use Docker secrets for registry credentials instead of environment variables (see `secrets/README.md`)
+4. **Audit Logging**: Enable and monitor audit logs for all deployments
+5. **Access Control**: Limit control plane access to authorized users only
+6. **Regular Updates**: Keep Tiaki and all dependencies up to date
+7. **Vulnerability Scanning**: Enable Trivy integration for container scanning
+8. **Backup**: Regularly backup the control plane database
+9. **Monitoring**: Monitor agent and control plane logs for suspicious activity
+10. **Credential Rotation**: Regularly rotate API keys, registry credentials, and secrets
 
 ## Disclosure Policy
 

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-23
+
+### Added
+
+- Docker socket proxy support via `tecnativa/docker-socket-proxy` to limit agent's Docker API access to required endpoints only
+- Docker secrets support for registry credentials (`REGISTRY_AUTH_FILE`) as a secure alternative to environment variables
+- `NewClientFromAuthFile` in the registry client to parse Docker auth JSON files (supports both base64 `auth` field and plain `username`/`password` fields)
+- `secrets/` directory with `registry_auth.json.example` and setup documentation
+- `DOCKER_SECURITY.md` quick-reference guide for enabling socket proxy and Docker secrets
+- Documentation page for Docker security best practices (`docs/docs/configuration/docker-security.md`)
+- Network isolation: all services now run in a dedicated `tiaki-internal` Docker bridge network
+
+### Security
+
+- Registry credentials can now be stored as Docker secrets instead of environment variables (not visible in `docker inspect` or process listings)
+- `REGISTRY_AUTH_FILE` environment variable takes precedence over `REGISTRY_USERNAME`/`REGISTRY_PASSWORD` when set
+- Secrets files (`secrets/*.json`, `*.key`, `*.pem`) excluded from version control via `.gitignore`
+
 ## [0.2.0] - 2026-03-23
 
 ### Added
@@ -84,6 +102,7 @@ When preparing a release, use this template:
 
 ---
 
-[Unreleased]: https://github.com/itlabs-gmbh/tiaki/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/itlabs-gmbh/tiaki/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/itlabs-gmbh/tiaki/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/itlabs-gmbh/tiaki/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/itlabs-gmbh/tiaki/releases/tag/v0.1.0

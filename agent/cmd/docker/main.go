@@ -32,7 +32,15 @@ func main() {
 		SkipVerify: cfg.TLSSkipVerify,
 		CACertPath: cfg.CACertPath,
 	})
-	registryClient := registry.NewClient(cfg.RegistryUsername, cfg.RegistryPassword)
+	var registryClient *registry.Client
+	if cfg.RegistryAuthFile != "" {
+		registryClient, err = registry.NewClientFromAuthFile(cfg.RegistryAuthFile)
+		if err != nil {
+			log.Fatalf("[agent] failed to load registry auth file: %v", err)
+		}
+	} else {
+		registryClient = registry.NewClient(cfg.RegistryUsername, cfg.RegistryPassword)
+	}
 
 	scanner, err := docker.NewScanner()
 	if err != nil {

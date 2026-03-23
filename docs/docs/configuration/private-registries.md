@@ -87,3 +87,7 @@ The agent automatically detects the registry hostname from the image name (e.g. 
 - **Limit token scopes** — agents only need `read` access to registries
 - **Store credentials in secrets** — use Docker secrets, Kubernetes secrets, or a secrets manager instead of plain `.env` files in production
 - **Never commit credentials** to version control
+
+:::tip Enhanced Security
+For production deployments, use **Docker secrets** instead of environment variables. See [Docker Security Best Practices](docker-security) for a complete guide on using Docker secrets and socket proxy.
+:::

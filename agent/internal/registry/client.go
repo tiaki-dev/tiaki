@@ -2,16 +2,20 @@ package registry
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
 
 const maxRegistryResponseBytes = 4 << 20 // 4 MiB — tag lists can be large for popular images
+
+const dockerHubRegistry = "registry-1.docker.io"
 
 // Client checks Docker registries for image updates.
 type Client struct {
@@ -27,6 +31,54 @@ func NewClient(username, password string) *Client {
 		username: username,
 		password: password,
 	}
+}
+
+// dockerAuthFile is the JSON structure of a Docker auth config file (e.g. ~/.docker/config.json).
+type dockerAuthFile struct {
+	Auths map[string]struct {
+		Auth     string `json:"auth"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	} `json:"auths"`
+}
+
+// NewClientFromAuthFile reads a Docker auth JSON file (as used by Docker secrets via
+// REGISTRY_AUTH_FILE) and returns a Client configured with the first valid credential
+// found. Returns an error if the file cannot be read or parsed.
+// The file format is compatible with ~/.docker/config.json and Docker Hub auth files.
+func NewClientFromAuthFile(path string) (*Client, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read auth file %s: %w", path, err)
+	}
+
+	var authFile dockerAuthFile
+	if err := json.Unmarshal(data, &authFile); err != nil {
+		return nil, fmt.Errorf("parse auth file %s: %w", path, err)
+	}
+
+	// Use the first registry entry found.
+	for _, entry := range authFile.Auths {
+		// Prefer pre-encoded auth field.
+		if entry.Auth != "" {
+			decoded, err := base64.StdEncoding.DecodeString(entry.Auth)
+			if err != nil {
+				return nil, fmt.Errorf("decode auth field in %s: %w", path, err)
+			}
+			parts := strings.SplitN(string(decoded), ":", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("auth field in %s is not in username:password format", path)
+			}
+			return NewClient(parts[0], parts[1]), nil
+		}
+		// Fall back to plain username/password fields.
+		if entry.Username != "" {
+			return NewClient(entry.Username, entry.Password), nil
+		}
+	}
+
+	// No credentials found — return an unauthenticated client.
+	return NewClient("", ""), nil
 }
 
 // CheckForUpdate checks if a newer tag exists for the given image.
@@ -156,7 +208,7 @@ func (c *Client) GetTagList(ctx context.Context, image string) ([]string, error)
 // For private registries without a token endpoint, returns empty string (use basic auth).
 func (c *Client) getToken(ctx context.Context, registry, repo string) (string, error) {
 	// Only Docker Hub uses the token exchange flow
-	if !strings.Contains(registry, "registry-1.docker.io") &&
+	if !strings.Contains(registry, dockerHubRegistry) &&
 		!strings.Contains(registry, "index.docker.io") {
 		return "", nil // use basic auth for private registries
 	}
@@ -201,12 +253,12 @@ func parseImageRef(image string) (registry, repo string) {
 
 	if len(parts) == 1 {
 		// Official image: nginx → registry-1.docker.io + library/nginx
-		return "registry-1.docker.io", "library/" + parts[0]
+		return dockerHubRegistry, "library/" + parts[0]
 	}
 
 	// Normalize docker.io shorthand to the actual registry API endpoint
 	if parts[0] == "docker.io" {
-		parts[0] = "registry-1.docker.io"
+		parts[0] = dockerHubRegistry
 	}
 
 	// Check if first part is a registry host (contains dot or colon)
@@ -215,5 +267,5 @@ func parseImageRef(image string) (registry, repo string) {
 	}
 
 	// Docker Hub user image: user/repo
-	return "registry-1.docker.io", image
+	return dockerHubRegistry, image
 }

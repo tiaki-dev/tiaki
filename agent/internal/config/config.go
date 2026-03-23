@@ -16,6 +16,7 @@ type Config struct {
 	ScanInterval      string // cron expression
 	RegistryUsername  string
 	RegistryPassword  string
+	RegistryAuthFile  string   // REGISTRY_AUTH_FILE — path to Docker auth JSON (Docker secrets)
 	ComposePaths      []string // colon-separated list of compose file directories
 	ExcludeNamespaces []string // EXCLUDE_NAMESPACES — comma-separated namespaces to skip in K8s scanner
 	// TLS options for the control plane connection
@@ -42,6 +43,7 @@ func Load() (*Config, error) {
 		ScanInterval:     getEnv("SCAN_INTERVAL", "0 */6 * * *"),
 		RegistryUsername: getEnv("REGISTRY_USERNAME", ""),
 		RegistryPassword: getEnv("REGISTRY_PASSWORD", ""),
+		RegistryAuthFile: getEnv("REGISTRY_AUTH_FILE", ""),
 	}
 
 	if paths := getEnv("COMPOSE_PATHS", ""); paths != "" {

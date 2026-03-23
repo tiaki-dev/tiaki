@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: tiaki
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - tiaki-internal
 
   server:
     image: tiakidev/tiaki-server:latest
@@ -16,6 +18,8 @@ services:
       - postgres
     ports:
       - "3001:3001"
+    networks:
+      - tiaki-internal
     environment:
       DATABASE_URL: postgresql://tiaki:tiaki@postgres:5432/tiaki
       PORT: 3001
@@ -36,17 +40,67 @@ services:
       # Optional: higher GitHub API rate limits
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
+  # Optional: Docker socket proxy for enhanced security
+  # Uncomment to limit agent's Docker API access
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    profiles:
+      - agent
+      - socket-proxy
+    privileged: true
+    environment:
+      - CONTAINERS=1
+      - IMAGES=1
+      - INFO=1
+      - NETWORKS=1
+      - VOLUMES=1
+      - POST=1  # Required for pulling images
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - tiaki-internal
+
   agent:
     image: tiakidev/tiaki-agent-docker:latest
     restart: unless-stopped
     profiles:
       - agent
     volumes:
+      # Direct socket access (default)
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # For socket-proxy: comment out the line above and uncomment below
+      # Then start with: docker compose --profile agent --profile socket-proxy up -d
     environment:
       CONTROL_URL: http://server:3001
       AGENT_API_KEY: ${AGENT_API_KEY:-}
+      # For socket-proxy: uncomment the line below
+      # DOCKER_HOST: tcp://socket-proxy:2375
       TRIVY_ENABLED: ${TRIVY_ENABLED:-true}
+      # Registry credentials (environment variables - basic method)
+      REGISTRY_USERNAME: ${REGISTRY_USERNAME:-}
+      REGISTRY_PASSWORD: ${REGISTRY_PASSWORD:-}
+      # For Docker secrets: uncomment the line below
+      # REGISTRY_AUTH_FILE: /run/secrets/registry_auth
+    # Uncomment to use Docker secrets for registry credentials
+    # secrets:
+    #   - registry_auth
+    networks:
+      - tiaki-internal
+    depends_on:
+      - server
+      # Uncomment if using socket-proxy
+      # - socket-proxy
+
+networks:
+  tiaki-internal:
+    driver: bridge
 
 volumes:
   postgres-data:
+
+# Uncomment to use Docker secrets for registry credentials
+# First create the file: cp secrets/registry_auth.json.example secrets/registry_auth.json && chmod 600 secrets/registry_auth.json
+# secrets:
+#   registry_auth:
+#     file: ./secrets/registry_auth.json
