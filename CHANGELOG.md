@@ -7,8 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-23
+
 ### Added
 
+- Helm charts for tiaki-agent and tiaki-control
+- Documentation site (Docusaurus) with guides for configuration, deployment, and development
+- Docker Hub descriptions for all published images
+- Helm chart release automation in CI/CD pipeline
+
+### Changed
+
+- Upgraded PostgreSQL from version 16 to 17
+- Upgraded dependencies to latest versions
+
+### Security
+
+- Security hardening for Dockerfiles: non-root user and apk upgrade
+
+## [0.1.0] - 2025-01-22
+
+### Added
+
+- Initial development version
+- Core agent functionality
+- Basic control plane features
+- Docker Compose support
+- Kubernetes support
 - Initial public release
 - Docker agent for VM/Docker Compose environments
 - Kubernetes agent for K8s clusters
@@ -22,23 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tRPC API with type-safe client/server communication
 - PostgreSQL database with Drizzle ORM
 - E2E test suite with Playwright
-
-### Security
-
-- Bearer token authentication for agents
-- JWT-based authentication for web users
-- Argon2 password hashing
-- API key rotation support
-
-## [0.1.0] - 2025-01-XX
-
-### Added
-
-- Initial development version
-- Core agent functionality
-- Basic control plane features
-- Docker Compose support
-- Kubernetes support
 
 ---
 
@@ -76,5 +84,6 @@ When preparing a release, use this template:
 
 ---
 
-[Unreleased]: https://github.com/itlabs-gmbh/tiaki/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/itlabs-gmbh/tiaki/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/itlabs-gmbh/tiaki/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/itlabs-gmbh/tiaki/releases/tag/v0.1.0
