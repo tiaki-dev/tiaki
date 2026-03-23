@@ -1,7 +1,7 @@
 [build]
   base    = "docs"
   command = "pnpm install && pnpm run gen-api-docs && pnpm build"
-  publish = "docs/build"
+  publish = "build"
 
 [build.environment]
   NODE_VERSION = "24"
