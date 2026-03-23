@@ -1,17 +1,17 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
-      POSTGRES_DB: dockwarden_test
-      POSTGRES_USER: dockwarden
-      POSTGRES_PASSWORD: dockwarden
+      POSTGRES_DB: tiaki_test
+      POSTGRES_USER: tiaki
+      POSTGRES_PASSWORD: tiaki
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dockwarden"]
+      test: ["CMD-SHELL", "pg_isready -U tiaki"]
       interval: 2s
       timeout: 5s
       retries: 20
     networks:
-      - dockwarden-test-net
+      - tiaki-test-net
 
   redis:
     image: redis:7-alpine
@@ -21,14 +21,14 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - dockwarden-test-net
+      - tiaki-test-net
 
   server:
     build:
       context: ../control/server
       dockerfile: Dockerfile.dev
     environment:
-      DATABASE_URL: postgresql://dockwarden:dockwarden@postgres:5432/dockwarden_test
+      DATABASE_URL: postgresql://tiaki:tiaki@postgres:5432/tiaki_test
       REDIS_URL: redis://redis:6379
       PORT: 3001
       NODE_ENV: test
@@ -46,28 +46,28 @@ services:
       timeout: 5s
       retries: 15
     networks:
-      - dockwarden-test-net
+      - tiaki-test-net
 
   # Test target containers — these are what the agent will scan
   test-nginx:
     image: nginx:1.24-alpine
-    container_name: dockwarden-test-nginx
+    container_name: tiaki-test-nginx
     networks:
-      - dockwarden-test-net
+      - tiaki-test-net
 
   # Test container with explicit "latest" tag — exercises digest-based update detection
   test-nginx-latest:
     image: nginx:latest
-    container_name: dockwarden-test-nginx-latest
+    container_name: tiaki-test-nginx-latest
     networks:
-      - dockwarden-test-net
+      - tiaki-test-net
 
   test-redis:
     image: redis:7.0-alpine
-    container_name: dockwarden-test-redis
+    container_name: tiaki-test-redis
     networks:
-      - dockwarden-test-net
+      - tiaki-test-net
 
 networks:
-  dockwarden-test-net:
-    name: dockwarden-test-net
+  tiaki-test-net:
+    name: tiaki-test-net
