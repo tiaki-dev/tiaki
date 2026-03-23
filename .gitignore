@@ -1,0 +1,32 @@
+# Node
+node_modules/
+dist/
+.env
+.env.local
+coverage/
+*.tsbuildinfo
+
+# Go
+agent/bin/
+agent/*.exe
+agent/tiaki-agent-*
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+e2e/results/
+playwright-report
+test-results

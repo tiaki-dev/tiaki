@@ -1,0 +1,20 @@
+{
+  "name": "tiaki-control",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "concurrently \"pnpm -C server dev\" \"pnpm -C client dev\"",
+    "build": "pnpm -C server build && pnpm -C client build",
+    "test": "pnpm -C server test",
+    "test:e2e": "playwright test",
+    "db:generate": "pnpm -C server db:generate",
+    "db:migrate": "pnpm -C server db:migrate",
+    "db:studio": "pnpm -C server db:studio"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.5.0",
+    "concurrently": "^9.2.1"
+  }
+}

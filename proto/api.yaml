@@ -1,0 +1,202 @@
+openapi: 3.1.0
+info:
+  title: Tiaki Agent API
+  version: 1.0.0
+  description: REST contract between Go agents and the TypeScript control plane.
+
+servers:
+  - url: /api/v1
+
+security:
+  - AgentApiKey: []
+
+components:
+  securitySchemes:
+    AgentApiKey:
+      type: http
+      scheme: bearer
+      description: API key issued at agent registration (bearer token)
+
+  schemas:
+    AgentType:
+      type: string
+      enum: [vm, k8s]
+
+    ContainerReport:
+      type: object
+      required: [containerId, name, image, tag, digest]
+      properties:
+        containerId:
+          type: string
+          description: Docker container ID or K8s pod UID
+        name:
+          type: string
+        image:
+          type: string
+          description: Image name without tag (e.g. nginx, registry.example.com/myapp)
+        tag:
+          type: string
+          description: Current running tag
+        digest:
+          type: string
+          description: Current image digest (sha256:...)
+        composeFile:
+          type: string
+          nullable: true
+        composeService:
+          type: string
+          nullable: true
+        namespace:
+          type: string
+          nullable: true
+          description: K8s namespace (k8s agent only)
+
+    UpdateReport:
+      type: object
+      required: [containerId, currentTag, latestTag, latestDigest]
+      properties:
+        containerId:
+          type: string
+        currentTag:
+          type: string
+        latestTag:
+          type: string
+        latestDigest:
+          type: string
+        changelogUrl:
+          type: string
+          nullable: true
+
+    DeployCommand:
+      type: object
+      required: [commandId, updateResultId, image, latestTag, composeFile, composeService]
+      properties:
+        commandId:
+          type: string
+        updateResultId:
+          type: string
+        image:
+          type: string
+        latestTag:
+          type: string
+        composeFile:
+          type: string
+        composeService:
+          type: string
+
+    DeployResult:
+      type: object
+      required: [commandId, success]
+      properties:
+        commandId:
+          type: string
+        success:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+        log:
+          type: string
+          nullable: true
+
+paths:
+  /agents/register:
+    post:
+      operationId: registerAgent
+      summary: Register a new agent and receive an API key
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                name:
+                  type: string
+                type:
+                  $ref: '#/components/schemas/AgentType'
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Agent registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agentId:
+                    type: string
+                  apiKey:
+                    type: string
+
+  /agents/heartbeat:
+    post:
+      operationId: agentHeartbeat
+      summary: Update agent last_seen_at
+      responses:
+        '204':
+          description: OK
+
+  /reports/submit:
+    post:
+      operationId: submitReport
+      summary: Agent submits scan results (containers + detected updates)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [containers]
+              properties:
+                containers:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ContainerReport'
+                updates:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/UpdateReport'
+      responses:
+        '204':
+          description: Report accepted
+
+  /reports/commands:
+    get:
+      operationId: getCommands
+      summary: Long-poll for pending deploy commands (30s timeout)
+      responses:
+        '200':
+          description: List of pending deploy commands
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commands:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeployCommand'
+
+  /reports/commands/{commandId}/result:
+    post:
+      operationId: reportCommandResult
+      summary: Agent reports the result of a deploy command
+      parameters:
+        - name: commandId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeployResult'
+      responses:
+        '204':
+          description: Result recorded
