@@ -1,0 +1,19 @@
+# Dev override: exposes ports, skips client build, mounts source for hot reload
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile.dev
+    volumes:
+      - ./server/src:/workspace/server/src:ro
+    environment:
+      NODE_ENV: development
+    command: ["pnpm", "--filter", "tiaki-server", "run", "dev"]
+
+  # In dev, run the client via Vite dev server directly — skip the nginx build
+  client:
+    profiles: ["disabled"]

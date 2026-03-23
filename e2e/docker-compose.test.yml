@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dockwarden_test
+      POSTGRES_USER: dockwarden
+      POSTGRES_PASSWORD: dockwarden
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dockwarden"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+    networks:
+      - dockwarden-test-net
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dockwarden-test-net
+
+  server:
+    build:
+      context: ../control/server
+      dockerfile: Dockerfile.dev
+    environment:
+      DATABASE_URL: postgresql://dockwarden:dockwarden@postgres:5432/dockwarden_test
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      NODE_ENV: test
+      JWT_SECRET: test-secret-do-not-use-in-prod
+    ports:
+      - "13001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+    networks:
+      - dockwarden-test-net
+
+  # Test target containers — these are what the agent will scan
+  test-nginx:
+    image: nginx:1.24-alpine
+    container_name: dockwarden-test-nginx
+    networks:
+      - dockwarden-test-net
+
+  # Test container with explicit "latest" tag — exercises digest-based update detection
+  test-nginx-latest:
+    image: nginx:latest
+    container_name: dockwarden-test-nginx-latest
+    networks:
+      - dockwarden-test-net
+
+  test-redis:
+    image: redis:7.0-alpine
+    container_name: dockwarden-test-redis
+    networks:
+      - dockwarden-test-net
+
+networks:
+  dockwarden-test-net:
+    name: dockwarden-test-net

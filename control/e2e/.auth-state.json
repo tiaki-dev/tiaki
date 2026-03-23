@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [
+        {
+          "name": "tiaki-admin-token",
+          "value": "change-me-to-a-random-secret"
+        }
+      ]
+    }
+  ]
+}

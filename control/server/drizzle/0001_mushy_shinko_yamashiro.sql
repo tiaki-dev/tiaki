@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "containers_agent_container_idx" ON "containers" USING btree ("agent_id","container_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "update_results_container_tag_idx" ON "update_results" USING btree ("container_id","latest_tag");

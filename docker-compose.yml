@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tiaki
+      POSTGRES_PASSWORD: tiaki
+      POSTGRES_DB: tiaki
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  server:
+    image: tiakidev/tiaki-server:latest
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://tiaki:tiaki@postgres:5432/tiaki
+      PORT: 3001
+      NODE_ENV: production
+      # Generate with: openssl rand -hex 32
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+      # Optional: SMTP for email notifications
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      # Optional: cron schedule for scans (default: every 6 hours)
+      SCAN_INTERVAL: ${SCAN_INTERVAL:-0 */6 * * *}
+      # Optional: AI release notes summarization
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Optional: higher GitHub API rate limits
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+
+  agent:
+    image: tiakidev/tiaki-agent-docker:latest
+    restart: unless-stopped
+    profiles:
+      - agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      CONTROL_URL: http://server:3001
+      AGENT_API_KEY: ${AGENT_API_KEY:-}
+      TRIVY_ENABLED: ${TRIVY_ENABLED:-true}
+
+volumes:
+  postgres-data:
