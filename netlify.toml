@@ -5,8 +5,3 @@
 
 [build.environment]
   NODE_VERSION = "24"
-
-[[plugins]]
-  package = "@netlify/plugin-caching"
-  [plugins.inputs]
-    paths = ["docs/node_modules", "docs/.cache"]
