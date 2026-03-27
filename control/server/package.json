@@ -18,7 +18,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@trpc/server": "^11.14.1",
+    "@trpc/server": "^11.15.1",
     "argon2": "^0.44.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -27,7 +27,7 @@
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
     "node-cron": "^4.2.1",
-    "nodemailer": "^8.0.3",
+    "nodemailer": "^8.0.4",
     "pg": "^8.20.0",
     "zod": "^4.3.6"
   },
@@ -43,6 +43,6 @@
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.2"
   }
 }
