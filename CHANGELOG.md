@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-27
+
+### Fixed
+
+- **Registry check failures for `docker.n8n.io` and other OCI index registries**: The agent's manifest HEAD request was missing the `application/vnd.oci.image.index.v1+json` Accept media type. Registries that serve OCI image index manifests (multi-arch) exclusively — such as `docker.n8n.io` — returned 404 instead of the expected digest. The Accept header now includes this media type, making digest lookups work correctly for all OCI-compliant registries.
+- **Report submission rejected with `updates: invalid_type, expected array, received null`**: When all registry checks failed (e.g. due to 404s), the `updates` field in the submitted report was JSON `null` instead of an empty array `[]`. The agent now always sends an empty array when no updates are found, satisfying the control plane's schema validation.
+- **HEAD-to-GET fallback for registries that do not support HEAD on manifests**: Added a defensive fallback: if a registry returns 404 or 405 for a `HEAD /manifests/` request, the agent retries with `GET`. This improves compatibility with non-standard registry implementations.
+
 ## [0.5.0] - 2026-03-27
 
 ### Fixed

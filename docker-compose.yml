@@ -12,7 +12,7 @@ services:
       - tiaki-internal
 
   server:
-    image: tiakidev/tiaki-server:0.5.0
+    image: tiakidev/tiaki-server:0.6.0
     restart: unless-stopped
     depends_on:
       - postgres
@@ -62,7 +62,7 @@ services:
       - tiaki-internal
 
   agent:
-    image: tiakidev/tiaki-agent-docker:0.5.0
+    image: tiakidev/tiaki-agent-docker:0.6.0
     restart: unless-stopped
     profiles:
       - agent

@@ -139,7 +139,7 @@ func (c *Client) GetRemoteDigest(ctx context.Context, image, tag string) (string
 // parse the 401 challenge to obtain a Bearer token and retry.
 func (c *Client) getRemoteDigestFromHost(ctx context.Context, registryHost, repo, tag string) (string, error) {
 	manifestURL := fmt.Sprintf("https://%s/v2/%s/manifests/%s", registryHost, repo, tag)
-	const acceptHeader = "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json"
+	const acceptHeader = "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json"
 
 	newReq := func(token string) (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, manifestURL, nil)
@@ -155,10 +155,31 @@ func (c *Client) getRemoteDigestFromHost(ctx context.Context, registryHost, repo
 	if err != nil {
 		return "", err
 	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("registry returned %d for manifest %s/%s:%s", resp.StatusCode, registryHost, repo, tag)
+	if resp.StatusCode == http.StatusOK {
+		return resp.Header.Get("Docker-Content-Digest"), nil
 	}
-	return resp.Header.Get("Docker-Content-Digest"), nil
+	// Some registries (e.g. docker.n8n.io) do not support HEAD for manifests.
+	// Fall back to GET which is universally supported.
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed {
+		newGetReq := func(token string) (*http.Request, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("Accept", acceptHeader)
+			c.setAuth(req, token)
+			return req, nil
+		}
+		resp2, err := c.doWithChallengeRetry(ctx, newGetReq, registryHost+"/"+repo)
+		if err != nil {
+			return "", err
+		}
+		if resp2.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("registry returned %d for manifest %s/%s:%s", resp2.StatusCode, registryHost, repo, tag)
+		}
+		return resp2.Header.Get("Docker-Content-Digest"), nil
+	}
+	return "", fmt.Errorf("registry returned %d for manifest %s/%s:%s", resp.StatusCode, registryHost, repo, tag)
 }
 
 // doWithChallengeRetry performs a request, and if the registry responds with 401,

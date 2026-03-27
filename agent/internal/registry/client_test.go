@@ -262,6 +262,43 @@ func TestGetRemoteDigest_challengeFlow(t *testing.T) {
 	}
 }
 
+// registryStubHeadNotFound creates a TLS test server that returns 404 for HEAD manifest
+// requests but 200 with digest for GET manifest requests. Simulates docker.n8n.io behaviour.
+func registryStubHeadNotFound(t *testing.T, digest string) *httptest.Server {
+	t.Helper()
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/manifests/"):
+			if r.Method == http.MethodHead {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			// GET succeeds
+			w.Header().Set("Docker-Content-Digest", digest)
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+}
+
+func TestGetRemoteDigest_headNotFoundFallbackToGet(t *testing.T) {
+	const want = "sha256:n8ndigest"
+	srv := registryStubHeadNotFound(t, want)
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	host := strings.TrimPrefix(srv.URL, "https://")
+
+	got, err := c.getRemoteDigestFromHost(context.Background(), host, "n8nio/n8n", "latest")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != want {
+		t.Errorf("digest = %q, want %q", got, want)
+	}
+}
+
 // writeTempFile writes content to a temp file and returns its path.
 func writeTempFile(t *testing.T, content string) string {
 	t.Helper()
