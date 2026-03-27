@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-27
+
+### Fixed
+
+- **False-positive updates for `latest`-tagged containers**: The agent was comparing the local Docker image ID (`c.ImageID`) against the registry manifest digest (`Docker-Content-Digest`), which are fundamentally different values and always unequal. Non-semver tags (e.g. `latest`) now use an in-memory digest cache that tracks the last-known registry manifest digest across scan cycles. On the first scan the digest is learned and cached; subsequent scans compare the cached registry digest against the current remote digest, so updates are only reported when the registry actually publishes a new image.
+- **Registry authentication for non-Docker Hub registries**: The previous implementation hard-coded a Docker Hub-specific token exchange URL (`auth.docker.io`), causing authentication failures for any other registry (e.g. `docker.n8n.io`, `ghcr.io`, `quay.io`). The agent now implements the standard OCI Distribution Spec [WWW-Authenticate challenge flow](https://distribution.github.io/distribution/spec/auth/token/): it probes the registry unauthenticated, parses the `WWW-Authenticate: Bearer realm=...,service=...,scope=...` header from the 401 response, and fetches a token from the realm indicated by the registry. This makes the agent compatible with any OCI-compliant registry.
+- **Terminal update results not re-surfaced after new `latest` push**: After a `latest → latest` deployment was marked `deployed` (or `failed`/`ignored`/`rolled_back`), a subsequent push of a new image under the same tag would not create a new pending update. The `upsertUpdateResult` conflict handler now resets terminal-status rows back to `pending` and updates `foundAt` when the `latestDigest` changes, correctly re-surfacing newly pushed images.
+
+### Changed
+
+- `upsertUpdateResult` now also updates `currentTag` on conflict, keeping it in sync with the running container's tag across scans.
+
 ## [0.4.0] - 2026-03-27
 
 ### Changed

@@ -91,6 +91,13 @@ func main() {
 	}
 }
 
+// digestCache maps "image:tag" → last known registry manifest digest.
+// Used to detect real updates for non-semver tags (e.g. "latest") by comparing
+// the previously-fetched registry digest against the current remote digest.
+// The local Docker image ID (c.ImageID) is NOT a registry manifest digest and
+// must not be used for this comparison.
+var digestCache = map[string]string{}
+
 func runScan(
 	ctx context.Context,
 	cfg *config.Config,
@@ -116,12 +123,18 @@ func runScan(
 	var updatePayloads []reporter.UpdatePayload
 
 	for _, c := range containers {
+		cacheKey := c.Image + ":" + c.Tag
+		// For non-semver tags (e.g. "latest"), use the last-known registry manifest
+		// digest from our cache instead of the local Docker image ID, which is a
+		// different value and would always differ from the registry manifest digest.
+		knownDigest := digestCache[cacheKey]
+
 		cp := reporter.ContainerPayload{
 			ContainerID: c.ContainerID,
 			Name:        c.Name,
 			Image:       c.Image,
 			Tag:         c.Tag,
-			Digest:      c.Digest,
+			Digest:      knownDigest,
 		}
 		if c.ComposeFile != "" {
 			cp.ComposeFile = &c.ComposeFile
@@ -131,10 +144,15 @@ func runScan(
 		}
 		containerPayloads = append(containerPayloads, cp)
 
-		latestTag, latestDigest, hasUpdate, err := reg.CheckForUpdate(ctx, c.Image, c.Tag, c.Digest)
+		latestTag, latestDigest, hasUpdate, err := reg.CheckForUpdate(ctx, c.Image, c.Tag, knownDigest)
 		if err != nil {
 			log.Printf("[agent] registry check failed for %s:%s: %v", c.Image, c.Tag, err)
 			continue
+		}
+		// Update the cache with the latest registry digest regardless of whether
+		// an update is available. This ensures the next scan has a valid baseline.
+		if latestDigest != "" {
+			digestCache[cacheKey] = latestDigest
 		}
 		if hasUpdate {
 			log.Printf("[agent] update available: %s %s → %s", c.Image, c.Tag, latestTag)

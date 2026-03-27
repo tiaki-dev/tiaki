@@ -173,6 +173,95 @@ func TestNewClientFromAuthFile_base64AuthMissingColon(t *testing.T) {
 	}
 }
 
+func TestParseBearerChallenge(t *testing.T) {
+	tests := []struct {
+		header      string
+		wantRealm   string
+		wantService string
+		wantScope   string
+	}{
+		{
+			header:      `Bearer realm="https://auth.docker.n8n.io/token",service="registry.n8n.io",scope="repository:n8nio/n8n:pull"`,
+			wantRealm:   "https://auth.docker.n8n.io/token",
+			wantService: "registry.n8n.io",
+			wantScope:   "repository:n8nio/n8n:pull",
+		},
+		{
+			header:      `Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:library/nginx:pull"`,
+			wantRealm:   "https://auth.docker.io/token",
+			wantService: "registry.docker.io",
+			wantScope:   "repository:library/nginx:pull",
+		},
+		{
+			header:    "Basic realm=\"Registry\"",
+			wantRealm: "",
+		},
+		{
+			header:    "",
+			wantRealm: "",
+		},
+	}
+	for _, tt := range tests {
+		realm, service, scope := parseBearerChallenge(tt.header)
+		if realm != tt.wantRealm {
+			t.Errorf("realm = %q, want %q (header: %q)", realm, tt.wantRealm, tt.header)
+		}
+		if tt.wantRealm != "" {
+			if service != tt.wantService {
+				t.Errorf("service = %q, want %q", service, tt.wantService)
+			}
+			if scope != tt.wantScope {
+				t.Errorf("scope = %q, want %q", scope, tt.wantScope)
+			}
+		}
+	}
+}
+
+// registryStubWithAuth creates a TLS test server that requires Bearer auth.
+// On first request it returns 401 with a WWW-Authenticate challenge pointing to
+// the stub's own /token endpoint. The token endpoint returns a fixed token.
+// Subsequent requests with the correct Bearer token are served normally.
+func registryStubWithAuth(t *testing.T, digest string) *httptest.Server {
+	t.Helper()
+	const fakeToken = "test-token-xyz"
+	var srv *httptest.Server
+	srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/token":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"token":"` + fakeToken + `"}`))
+		case strings.Contains(r.URL.Path, "/manifests/"):
+			if r.Header.Get("Authorization") != "Bearer "+fakeToken {
+				w.Header().Set("Www-Authenticate", `Bearer realm="`+srv.URL+`/token",service="registry.example.com",scope="repository:n8nio/n8n:pull"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.Header().Set("Docker-Content-Digest", digest)
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	return srv
+}
+
+func TestGetRemoteDigest_challengeFlow(t *testing.T) {
+	const want = "sha256:deadbeef"
+	srv := registryStubWithAuth(t, want)
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	host := strings.TrimPrefix(srv.URL, "https://")
+
+	got, err := c.getRemoteDigestFromHost(context.Background(), host, "n8nio/n8n", "latest")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != want {
+		t.Errorf("digest = %q, want %q", got, want)
+	}
+}
+
 // writeTempFile writes content to a temp file and returns its path.
 func writeTempFile(t *testing.T, content string) string {
 	t.Helper()

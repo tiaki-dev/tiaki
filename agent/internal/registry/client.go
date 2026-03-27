@@ -17,6 +17,8 @@ const maxRegistryResponseBytes = 4 << 20 // 4 MiB — tag lists can be large for
 
 const dockerHubRegistry = "registry-1.docker.io"
 
+const bearerPrefix = "Bearer "
+
 // Client checks Docker registries for image updates.
 type Client struct {
 	http     *http.Client
@@ -133,62 +135,102 @@ func (c *Client) GetRemoteDigest(ctx context.Context, image, tag string) (string
 
 // getRemoteDigestFromHost fetches the manifest digest from an explicit registry host and repo path.
 // Extracted to allow unit testing with httptest servers.
+// Uses the standard OCI WWW-Authenticate challenge flow: probe unauthenticated first, then
+// parse the 401 challenge to obtain a Bearer token and retry.
 func (c *Client) getRemoteDigestFromHost(ctx context.Context, registryHost, repo, tag string) (string, error) {
-	token, err := c.getToken(ctx, registryHost, repo)
-	if err != nil {
-		return "", fmt.Errorf("auth for %s/%s: %w", registryHost, repo, err)
-	}
-
 	manifestURL := fmt.Sprintf("https://%s/v2/%s/manifests/%s", registryHost, repo, tag)
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, manifestURL, nil)
+	const acceptHeader = "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json"
+
+	newReq := func(token string) (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodHead, manifestURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", acceptHeader)
+		c.setAuth(req, token)
+		return req, nil
+	}
+
+	resp, err := c.doWithChallengeRetry(ctx, newReq, registryHost+"/"+repo)
 	if err != nil {
 		return "", err
 	}
-	// Accept both v2 and OCI manifests so registries return a stable digest
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json")
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	} else if c.username != "" {
-		req.SetBasicAuth(c.username, c.password)
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("registry returned %d for manifest %s/%s:%s", resp.StatusCode, registryHost, repo, tag)
 	}
-
 	return resp.Header.Get("Docker-Content-Digest"), nil
+}
+
+// doWithChallengeRetry performs a request, and if the registry responds with 401,
+// fetches a Bearer token via the WWW-Authenticate challenge and retries once.
+// The caller-supplied newReq factory builds a request for a given token (empty = no token).
+func (c *Client) doWithChallengeRetry(ctx context.Context, newReq func(token string) (*http.Request, error), resource string) (*http.Response, error) {
+	req, err := newReq("")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		return resp, nil
+	}
+
+	// 401 — attempt Bearer token challenge.
+	wwwAuth := resp.Header.Get("Www-Authenticate")
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	token, err := c.fetchChallengeToken(ctx, wwwAuth)
+	if err != nil {
+		return nil, fmt.Errorf("auth challenge for %s: %w", resource, err)
+	}
+	req2, err := newReq(token)
+	if err != nil {
+		return nil, err
+	}
+	resp2, err := c.http.Do(req2)
+	if err != nil {
+		return nil, err
+	}
+	_, _ = io.Copy(io.Discard, resp2.Body)
+	resp2.Body.Close()
+	return resp2, nil
+}
+
+// setAuth applies authorization to a request: Bearer token if provided, otherwise basic auth if credentials are set.
+func (c *Client) setAuth(req *http.Request, token string) {
+	switch {
+	case token != "":
+		req.Header.Set("Authorization", bearerPrefix+token)
+	case c.username != "":
+		req.SetBasicAuth(c.username, c.password)
+	}
 }
 
 // GetTagList returns all tags for an image from its registry.
 func (c *Client) GetTagList(ctx context.Context, image string) ([]string, error) {
 	registry, repo := parseImageRef(image)
-	token, err := c.getToken(ctx, registry, repo)
-	if err != nil {
-		return nil, fmt.Errorf("auth for %s: %w", image, err)
-	}
 
 	apiURL := fmt.Sprintf("https://%s/v2/%s/tags/list", registry, repo)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	} else if c.username != "" {
-		req.SetBasicAuth(c.username, c.password)
+
+	newReq := func(token string) (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		c.setAuth(req, token)
+		return req, nil
 	}
 
-	resp, err := c.http.Do(req)
+	resp, err := c.doWithChallengeRetry(ctx, newReq, image)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxRegistryResponseBytes))
@@ -204,20 +246,17 @@ func (c *Client) GetTagList(ctx context.Context, image string) ([]string, error)
 	return result.Tags, nil
 }
 
-// getToken exchanges credentials for a registry Bearer token (Docker Hub flow).
-// For private registries without a token endpoint, returns empty string (use basic auth).
-func (c *Client) getToken(ctx context.Context, registry, repo string) (string, error) {
-	// Only Docker Hub uses the token exchange flow
-	if !strings.Contains(registry, dockerHubRegistry) &&
-		!strings.Contains(registry, "index.docker.io") {
-		return "", nil // use basic auth for private registries
+// fetchChallengeToken parses a WWW-Authenticate Bearer challenge header and fetches
+// a pull token from the realm endpoint indicated by the registry.
+// This implements the standard OCI distribution spec token challenge flow and works
+// for any compliant registry (Docker Hub, ghcr.io, docker.n8n.io, quay.io, etc.).
+func (c *Client) fetchChallengeToken(ctx context.Context, wwwAuth string) (string, error) {
+	realm, service, scope := parseBearerChallenge(wwwAuth)
+	if realm == "" {
+		return "", fmt.Errorf("no Bearer realm in WWW-Authenticate: %q", wwwAuth)
 	}
 
-	tokenURL := fmt.Sprintf(
-		"https://auth.docker.io/token?service=registry.docker.io&scope=repository:%s:pull",
-		url.QueryEscape(repo),
-	)
-
+	tokenURL := realm + "?service=" + url.QueryEscape(service) + "&scope=" + url.QueryEscape(scope)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tokenURL, nil)
 	if err != nil {
 		return "", err
@@ -233,16 +272,49 @@ func (c *Client) getToken(ctx context.Context, registry, repo string) (string, e
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", nil // token endpoint unavailable — try unauthenticated
+		return "", fmt.Errorf("token endpoint returned %d", resp.StatusCode)
 	}
 
 	var result struct {
-		Token string `json:"token"`
+		Token       string `json:"token"`
+		AccessToken string `json:"access_token"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxRegistryResponseBytes)).Decode(&result); err != nil {
 		return "", err
 	}
-	return result.Token, nil
+	if result.Token != "" {
+		return result.Token, nil
+	}
+	return result.AccessToken, nil
+}
+
+// parseBearerChallenge extracts realm, service, and scope from a
+// WWW-Authenticate header value of the form:
+//
+//	Bearer realm="https://auth.example.com/token",service="registry.example.com",scope="repository:foo/bar:pull"
+func parseBearerChallenge(header string) (realm, service, scope string) {
+	if !strings.HasPrefix(header, bearerPrefix) {
+		return "", "", ""
+	}
+	attrs := header[len(bearerPrefix):]
+	for _, part := range strings.Split(attrs, ",") {
+		part = strings.TrimSpace(part)
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(kv[0])
+		val := strings.Trim(strings.TrimSpace(kv[1]), `"`)
+		switch key {
+		case "realm":
+			realm = val
+		case "service":
+			service = val
+		case "scope":
+			scope = val
+		}
+	}
+	return realm, service, scope
 }
 
 // parseImageRef splits "nginx" or "registry.example.com/myapp" into (registry, repo).
