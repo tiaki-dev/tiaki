@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { db } from '../index.js'
 import { agents, updateResults, containers, type UpdateResult, type NewUpdateResult } from '../schema.js'
 
@@ -168,7 +168,10 @@ export async function createUpdateResult(data: NewUpdateResult): Promise<UpdateR
 }
 
 export async function upsertUpdateResult(data: NewUpdateResult): Promise<UpdateResult> {
-  // If same container + latestTag already exists, keep existing status (don't overwrite approved/deployed)
+  // If same container + latestTag already exists:
+  // - For terminal statuses (deployed, failed, ignored, rolled_back): reset to pending
+  //   when the latestDigest changed, so a new push of e.g. "latest" is surfaced again.
+  // - For active statuses (pending, approved, deploying, rollback_requested): keep as-is.
   const rows = await db
     .insert(updateResults)
     .values(data)
@@ -178,7 +181,23 @@ export async function upsertUpdateResult(data: NewUpdateResult): Promise<UpdateR
         latestDigest: data.latestDigest ?? null,
         changelogUrl: data.changelogUrl ?? null,
         vulnerabilities: data.vulnerabilities ?? null,
-        // Status stays as-is — do NOT reset approved/deployed back to pending
+        currentTag: data.currentTag,
+        // Reset terminal rows to pending when the digest changed (new image pushed under same tag).
+        // Active statuses (pending, approved, deploying, rollback_requested) are left untouched.
+        status: sql`CASE
+          WHEN ${updateResults.status}::text IN ('deployed', 'failed', 'ignored', 'rolled_back')
+           AND ${data.latestDigest ?? null} IS NOT NULL
+           AND ${updateResults.latestDigest} IS DISTINCT FROM ${data.latestDigest ?? null}
+          THEN 'pending'::text::update_status
+          ELSE ${updateResults.status}
+        END`,
+        foundAt: sql`CASE
+          WHEN ${updateResults.status}::text IN ('deployed', 'failed', 'ignored', 'rolled_back')
+           AND ${data.latestDigest ?? null} IS NOT NULL
+           AND ${updateResults.latestDigest} IS DISTINCT FROM ${data.latestDigest ?? null}
+          THEN ${data.foundAt}
+          ELSE ${updateResults.foundAt}
+        END`,
       },
     })
     .returning()
