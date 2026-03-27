@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-27
+
+### Changed
+
+- Upgraded PostgreSQL from version 17 to 18
+- API key prefix updated from `dw_` to `tiaki_`
+
+### Fixed
+
+- Express `trust proxy` enabled to correctly handle `X-Forwarded-For` headers when running behind a reverse proxy (e.g. Caddy)
+
 ## [0.3.0] - 2026-03-23
 
 ### Added
@@ -102,7 +113,8 @@ When preparing a release, use this template:
 
 ---
 
-[Unreleased]: https://github.com/itlabs-gmbh/tiaki/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/itlabs-gmbh/tiaki/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/itlabs-gmbh/tiaki/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/itlabs-gmbh/tiaki/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/itlabs-gmbh/tiaki/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/itlabs-gmbh/tiaki/releases/tag/v0.1.0

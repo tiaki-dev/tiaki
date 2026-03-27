@@ -14,6 +14,7 @@ import { startScheduler } from './scheduler/index.js'
 import { verifySchema } from './lib/verify-schema.js'
 
 const app = express()
+app.set('trust proxy', 1)
 const PORT = parseInt(process.env['PORT'] ?? '3001', 10)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
