@@ -119,8 +119,8 @@ func runScan(
 		log.Printf("[agent] heartbeat failed: %v", err)
 	}
 
-	var containerPayloads []reporter.ContainerPayload
-	var updatePayloads []reporter.UpdatePayload
+	containerPayloads := make([]reporter.ContainerPayload, 0)
+	updatePayloads := make([]reporter.UpdatePayload, 0)
 
 	for _, c := range containers {
 		cacheKey := c.Image + ":" + c.Tag
