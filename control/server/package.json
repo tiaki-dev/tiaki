@@ -2,7 +2,7 @@
   "name": "tiaki-server",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@9.15.9",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",

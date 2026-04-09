@@ -2,7 +2,7 @@
   "name": "tiaki-control",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "concurrently \"pnpm -C server dev\" \"pnpm -C client dev\"",
     "build": "pnpm -C server build && pnpm -C client build",
