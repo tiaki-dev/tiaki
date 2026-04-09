@@ -7,7 +7,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o tiaki-agent ./cmd/dock
 
 FROM ghcr.io/aquasecurity/trivy:latest AS trivy-bin
 
-FROM alpine:3.20
+FROM alpine:3.23
 RUN apk upgrade --no-cache && apk add --no-cache ca-certificates
 COPY --from=builder /build/tiaki-agent /tiaki-agent
 COPY --from=trivy-bin /usr/local/bin/trivy /usr/local/bin/trivy
