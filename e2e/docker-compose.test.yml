@@ -50,7 +50,7 @@ services:
 
   # Test target containers — these are what the agent will scan
   test-nginx:
-    image: nginx:1.24-alpine
+    image: nginx:1.29-alpine
     container_name: tiaki-test-nginx
     networks:
       - tiaki-test-net
